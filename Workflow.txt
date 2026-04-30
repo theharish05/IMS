@@ -1,0 +1,19 @@
+1. API Gateway (API Six) - first layer ( if it is going to have multiple service layer , load balancing , rate limiting )
+
+Fast API will itself can handle , ( rate limiting)  
+
+2. DB at that layer archiving the message
+
+3. cafkha layer - message broker storing the message temporarily for processing the other messages , distribute the messages 
+
+4. Buffering layer - 
+
+5. Master and controller arch , in the cafkha 
+
+6 . Alternative for cafkah rabbitq - fifo workflow , most popular in industry  - temporarily stored , no permanent 
+
+7. Fast API -- > cafkha --> DB(Processing),duplicate removal --> reddis in memory database  layer , use of Linux system  , use of rate liminting in the fast api .
+
+
+8. don'y want API six , fast api 
+
