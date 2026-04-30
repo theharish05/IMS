@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from .models.db import AsyncSessionLocal, signals_collection
 from .models.schema import WorkItem, RCA
-from .patterns.state import WorkItemStateMachine
+from .patterns.state import WorkItemStateContext
 from pydantic import BaseModel
 import time
 
@@ -51,10 +51,32 @@ async def get_incident(incident_id: int, db=Depends(get_db)):
         "signals": signals
     }
 
+class StateTransitionRequest(BaseModel):
+    new_state: str
+
 class RCASubmission(BaseModel):
     root_cause_category: str
     fix_applied: str
     prevention_steps: str
+
+@router.post("/incidents/{incident_id}/state")
+async def change_incident_state(incident_id: int, req: StateTransitionRequest, db=Depends(get_db)):
+    result = await db.execute(select(WorkItem).options(selectinload(WorkItem.rca)).filter(WorkItem.id == incident_id))
+    item = result.scalars().first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Incident not found")
+        
+    context = WorkItemStateContext(item, item.rca)
+    try:
+        context.transition_to(req.new_state)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    if req.new_state == "CLOSED":
+        item.end_time = time.time()
+        
+    await db.commit()
+    return {"status": "success", "new_state": item.state}
 
 @router.post("/incidents/{incident_id}/rca")
 async def submit_rca(incident_id: int, rca: RCASubmission, db=Depends(get_db)):
@@ -63,28 +85,32 @@ async def submit_rca(incident_id: int, rca: RCASubmission, db=Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Incident not found")
         
-    sm = WorkItemStateMachine(item.state)
+    # Check if RCA already exists
+    existing_rca_res = await db.execute(select(RCA).filter(RCA.work_item_id == incident_id))
+    existing_rca = existing_rca_res.scalars().first()
     
-    # Save RCA
-    new_rca = RCA(
-        work_item_id=incident_id,
-        root_cause_category=rca.root_cause_category,
-        fix_applied=rca.fix_applied,
-        prevention_steps=rca.prevention_steps
-    )
-    db.add(new_rca)
-    await db.commit()
-    
-    # Transition State (simulating UI closing it after RCA)
+    current_rca = None
+    if existing_rca:
+        existing_rca.root_cause_category = rca.root_cause_category
+        existing_rca.fix_applied = rca.fix_applied
+        existing_rca.prevention_steps = rca.prevention_steps
+        current_rca = existing_rca
+    else:
+        new_rca = RCA(
+            work_item_id=incident_id,
+            root_cause_category=rca.root_cause_category,
+            fix_applied=rca.fix_applied,
+            prevention_steps=rca.prevention_steps
+        )
+        db.add(new_rca)
+        current_rca = new_rca
+        
+    context = WorkItemStateContext(item, current_rca)
     try:
-        new_state = sm.transition(rca_exists=True) # Open -> Investigating
-        new_state = sm.transition(rca_exists=True) # Investigating -> Resolved
-        new_state = sm.transition(rca_exists=True) # Resolved -> Closed
-    except Exception as e:
+        context.transition_to("CLOSED")
+        item.end_time = time.time()
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
         
-    item.state = new_state
-    item.end_time = time.time()
     await db.commit()
-    
-    return {"status": "success", "new_state": new_state, "mttr": item.end_time - item.start_time}
+    return {"status": "success"}

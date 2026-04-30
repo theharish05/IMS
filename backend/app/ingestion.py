@@ -1,58 +1,74 @@
-from fastapi import APIRouter, Request, HTTPException, Depends
-from pydantic import BaseModel
-import time
+import asyncio
 import json
-import aio_pika
-from .config import settings
+import time
+from fastapi import APIRouter, HTTPException, Request, Response, BackgroundTasks
+from pydantic import BaseModel
 import redis.asyncio as redis
-from typing import Dict, Any
+from aiokafka import AIOKafkaProducer
+from .config import settings
 
 router = APIRouter()
-
-class Signal(BaseModel):
-    component_id: str
-    severity: str # P0, P1, P2
-    payload: Dict[str, Any]
-    timestamp: float
-
-# Redis connection for rate limiting
 redis_client = redis.from_url(settings.redis_url)
 
-# RabbitMQ connection pool
-mq_connection = None
-mq_channel = None
+# Global producer instance
+producer = None
 
-async def get_mq_channel():
-    global mq_connection, mq_channel
-    if not mq_channel:
-        mq_connection = await aio_pika.connect_robust(settings.rabbitmq_url)
-        mq_channel = await mq_connection.channel()
-    return mq_channel
+@router.on_event("startup")
+async def startup_event():
+    global producer
+    producer = AIOKafkaProducer(
+        bootstrap_servers=settings.kafka_bootstrap_servers
+    )
+    while True:
+        try:
+            await producer.start()
+            print("Successfully connected to Kafka producer.")
+            break
+        except Exception as e:
+            print(f"Waiting for Kafka: {e}")
+            await asyncio.sleep(5)
 
-async def check_rate_limit(client_ip: str):
-    # Simple rate limiting: max 1000 requests per second per IP
-    key = f"rate_limit:{client_ip}:{int(time.time())}"
-    count = await redis_client.incr(key)
-    if count == 1:
-        await redis_client.expire(key, 2)
-    if count > 1000:
-        raise HTTPException(status_code=429, detail="Too Many Requests")
+@router.on_event("shutdown")
+async def shutdown_event():
+    global producer
+    if producer:
+        await producer.stop()
 
-@router.post("/signals")
-async def ingest_signal(signal: Signal, request: Request, channel: aio_pika.Channel = Depends(get_mq_channel)):
-    client_ip = request.client.host if request.client else "unknown"
-    await check_rate_limit(client_ip)
+class SignalPayload(BaseModel):
+    component_id: str
+    severity: str
+    payload: dict
+    timestamp: float = None
 
-    # Update metrics in main app
+@router.post("/ingest", status_code=202)
+async def ingest_signal(signal: SignalPayload, request: Request):
     from .main import throughput_metrics
+    
+    if not signal.timestamp:
+        signal.timestamp = time.time()
+        
+    # Rate Limiting via Redis (e.g. max 10000 req per second per IP/Global)
+    # For a high volume system, we might just use a token bucket or simple counter
+    # Here we implement a simple counter for rate limiting
+    current_time = int(time.time())
+    rate_limit_key = f"ratelimit:{current_time}"
+    
+    # We will just increment and if it exceeds 15000, we drop or reject.
+    current_count = await redis_client.incr(rate_limit_key)
+    if current_count == 1:
+        await redis_client.expire(rate_limit_key, 2)
+        
+    if current_count > 15000:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    
     throughput_metrics["signals_received"] += 1
 
-    # Publish to RabbitMQ
-    message = aio_pika.Message(
-        body=json.dumps(signal.model_dump()).encode()
-    )
-    await channel.default_exchange.publish(
-        message, routing_key="signals_queue"
-    )
+    try:
+        # Publish to Kafka instantly
+        message = json.dumps(signal.model_dump()).encode("utf-8")
+        await producer.send_and_wait("signals_topic", message)
+    except Exception as e:
+        print(f"Error publishing to Kafka: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    return {"status": "accepted"}
+    return {"status": "Accepted"}

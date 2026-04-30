@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = '/api/v1';
 
 export default function RCAForm({ incidentId, onComplete }) {
   const [formData, setFormData] = useState({
@@ -35,7 +35,7 @@ export default function RCAForm({ incidentId, onComplete }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Failed to submit RCA');
       
-      onComplete(); // Refresh parent
+      onComplete();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -44,43 +44,50 @@ export default function RCAForm({ incidentId, onComplete }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-300">
+      <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mb-4">
+        <p className="text-amber-400/90 text-xs leading-relaxed">
+          Incident is in <strong className="text-amber-400 font-bold">INVESTIGATING</strong> state. 
+          Document the Root Cause Analysis to formally close this ticket.
+        </p>
+      </div>
+
       {error && (
-        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-sm">
+        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium">
           {error}
         </div>
       )}
       
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1">Root Cause Category</label>
+      <div className="space-y-1.5">
+        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Root Cause Category</label>
         <select 
-          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none"
+          className="w-full glass-input rounded-md p-2.5 text-sm text-zinc-200"
           value={formData.root_cause_category}
           onChange={e => setFormData({...formData, root_cause_category: e.target.value})}
         >
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          {categories.map(c => <option key={c} value={c} className="bg-zinc-900">{c}</option>)}
         </select>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1">Fix Applied</label>
+      <div className="space-y-1.5">
+        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Fix Applied</label>
         <textarea 
           required
           rows={3}
-          className="w-full bg-slate-900 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none resize-none"
-          placeholder="Describe what was done to mitigate the issue..."
+          className="w-full glass-input rounded-md p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none"
+          placeholder="Describe how the incident was mitigated..."
           value={formData.fix_applied}
           onChange={e => setFormData({...formData, fix_applied: e.target.value})}
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1">Prevention Steps</label>
+      <div className="space-y-1.5">
+        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Prevention Steps</label>
         <textarea 
           required
           rows={3}
-          className="w-full bg-slate-900 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none resize-none"
-          placeholder="How will we prevent this from happening again?"
+          className="w-full glass-input rounded-md p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none"
+          placeholder="Steps taken to prevent recurrence..."
           value={formData.prevention_steps}
           onChange={e => setFormData({...formData, prevention_steps: e.target.value})}
         />
@@ -89,9 +96,13 @@ export default function RCAForm({ incidentId, onComplete }) {
       <button 
         type="submit" 
         disabled={submitting}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-white text-black hover:bg-zinc-200 font-semibold py-2.5 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 text-sm flex justify-center items-center gap-2"
       >
-        {submitting ? 'Submitting RCA...' : 'Submit RCA & Close Incident'}
+        {submitting ? (
+          <><div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin"/> Processing...</>
+        ) : (
+          'Resolve Incident'
+        )}
       </button>
     </form>
   );

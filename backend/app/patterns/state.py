@@ -1,44 +1,15 @@
-from abc import ABC, abstractmethod
+class WorkItemStateContext:
+    def __init__(self, work_item, rca=None):
+        self.work_item = work_item
+        self.rca = rca
 
-class WorkItemState(ABC):
-    @abstractmethod
-    def next_state(self, work_item_context, rca_exists: bool = False) -> str:
-        pass
-
-class OpenState(WorkItemState):
-    def next_state(self, work_item_context, rca_exists: bool = False) -> str:
-        return "INVESTIGATING"
-
-class InvestigatingState(WorkItemState):
-    def next_state(self, work_item_context, rca_exists: bool = False) -> str:
-        return "RESOLVED"
-
-class ResolvedState(WorkItemState):
-    def next_state(self, work_item_context, rca_exists: bool = False) -> str:
-        if not rca_exists:
-            raise ValueError("Mandatory RCA is missing. Cannot move to CLOSED state.")
-        return "CLOSED"
-
-class ClosedState(WorkItemState):
-    def next_state(self, work_item_context, rca_exists: bool = False) -> str:
-        raise ValueError("Work Item is already CLOSED.")
-
-class WorkItemStateMachine:
-    def __init__(self, initial_state: str):
-        self.state_str = initial_state
-        self.state = self._get_state_obj(initial_state)
-
-    def _get_state_obj(self, state_str: str) -> WorkItemState:
-        states = {
-            "OPEN": OpenState(),
-            "INVESTIGATING": InvestigatingState(),
-            "RESOLVED": ResolvedState(),
-            "CLOSED": ClosedState()
-        }
-        return states.get(state_str, OpenState())
-
-    def transition(self, rca_exists: bool = False):
-        new_state_str = self.state.next_state(self, rca_exists)
-        self.state_str = new_state_str
-        self.state = self._get_state_obj(new_state_str)
-        return self.state_str
+    def transition_to(self, new_state: str):
+        valid_states = ["OPEN", "INVESTIGATING", "RESOLVED", "CLOSED"]
+        if new_state not in valid_states:
+            raise ValueError(f"Invalid state: {new_state}")
+            
+        if new_state == "CLOSED":
+            if not self.rca or not self.rca.root_cause_category or not self.rca.fix_applied or not self.rca.prevention_steps:
+                raise ValueError("Mandatory RCA Constraint Failed: Cannot close work item without a complete RCA.")
+                
+        self.work_item.state = new_state
