@@ -50,17 +50,6 @@ docker compose exec backend python scripts/mock_signals.py
 ```
 *Watch the React dashboard dynamically group these 10,000 incoming errors into a few actionable incidents!*
 
-### 4. How to View PostgreSQL Data
-If you want to view the structured Work Items and RCAs inside the PostgreSQL database, use the following command:
-```bash
-docker compose exec postgres psql -U ims_user -d ims_db
-```
-Once inside the PostgreSQL interactive terminal, run standard SQL commands such as:
-```sql
-SELECT * FROM work_items;
-SELECT * FROM rcas;
-\q
-```
 
 ## 🔒 Design Patterns Used
 * **Strategy Pattern**: Determines incident severity and routing logic based on signal payload dynamically.
