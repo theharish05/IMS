@@ -35,7 +35,7 @@ Open your terminal and run the following command from the root directory:
 ```bash
 docker compose up --build -d
 ```
-*This single command starts Zookeeper, Kafka, Redis, PostgreSQL, MongoDB, the FastAPI backend, the async Worker, and the React Frontend.*
+*This single command starts Kafka (in KRaft mode), Redis, PostgreSQL, MongoDB, the FastAPI backend, the async Worker, and the React Frontend.*
 
 ### 2. Access the UI
 Open your browser and navigate to:
