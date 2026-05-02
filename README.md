@@ -35,7 +35,7 @@ Open your terminal and run the following command from the root directory:
 ```bash
 docker compose up --build -d
 ```
-*This single command starts Kafka (in KRaft mode), Redis, PostgreSQL, MongoDB, the FastAPI backend, the async Worker, and the React Frontend.*
+*This single command starts Zookeeper, Kafka, Redis, PostgreSQL, MongoDB, the FastAPI backend, the async Worker, and the React Frontend.*
 
 ### 2. Access the UI
 Open your browser and navigate to:
@@ -54,7 +54,3 @@ docker compose exec backend python scripts/mock_signals.py
 ## 🔒 Design Patterns Used
 * **Strategy Pattern**: Determines incident severity and routing logic based on signal payload dynamically.
 * **State Pattern**: Enforces strict lifecycle transitions (`OPEN` -> `CLOSED`). It physically blocks an incident from being closed unless a complete RCA is submitted, ensuring accountability.
-
-## 📝 Recent Updates
-* **Architectural Simplification**: Migrated from Zookeeper to Apache Kafka in KRaft mode for better cross-platform compatibility and a lighter footprint.
-* **UI Refinements**: Streamlined the header by replacing the generic shield icon with the fully expanded "Incident Management System" branding for a more professional look.

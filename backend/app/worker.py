@@ -16,7 +16,7 @@ async def process_message(msg_value):
     component_id = signal["component_id"]
     severity = signal["severity"]
     
-    # Debouncing Logic using Redis
+    
     debounce_key = f"debounce:{component_id}"
     is_debounced = await redis_client.get(debounce_key)
     
@@ -28,7 +28,7 @@ async def process_message(msg_value):
     if is_debounced and active_wi_id:
         work_item_id = int(active_wi_id.decode())
     else:
-        # Create a new Work Item
+        
         async with AsyncSessionLocal() as session:
             new_wi = WorkItem(
                 component_id=component_id,
@@ -40,15 +40,15 @@ async def process_message(msg_value):
             await session.refresh(new_wi)
             work_item_id = new_wi.id
             
-        # Set debounce window (10 seconds)
+        
         await redis_client.setex(debounce_key, 10, "1")
         await redis_client.set(active_work_item_key, str(work_item_id))
         
-        # Trigger Alert for new incident
+        
         alert_context = AlertContext(get_alert_strategy(severity))
         alert_context.execute_alert(component_id, signal["payload"])
     
-    # Write Raw Signal to MongoDB
+    
     signal["work_item_id"] = work_item_id
     await signals_collection.insert_one(signal)
 

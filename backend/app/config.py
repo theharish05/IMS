@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     mongo_url: str = "mongodb://root:example_password@mongodb:27017"
     mongo_db_name: str = "ims_raw"
     redis_url: str = "redis://redis:6379/0"
-    kafka_bootstrap_servers: str = "kafka:29092"
+    kafka_bootstrap_servers: str = "kafka1:9092,kafka2:9092,kafka3:9092"
 
     class Config:
         env_file = ".env"
