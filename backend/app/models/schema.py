@@ -8,7 +8,7 @@ class WorkItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     component_id = Column(String, index=True)
-    state = Column(String, default="OPEN") # OPEN, INVESTIGATING, RESOLVED, CLOSED
+    state = Column(String, default="OPEN") 
     severity = Column(String)
     start_time = Column(Float)
     end_time = Column(Float, nullable=True)
