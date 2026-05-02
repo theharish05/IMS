@@ -1,27 +1,9 @@
 #  Incident Management System (IMS)
 
 A **production-grade, high-throughput Incident Management System** built to ingest, debounce, and manage massive volumes of application error signals. The system is architected to sustain bursts of **10,000+ signals/sec** without overwhelming the persistence layer, using an event-driven, fully decoupled microservices design — all orchestrated with a single `docker compose up` command.
-
----
-
-## 🏗️ What Was Built — Project Journey
-
-This project went through multiple major upgrades from a basic prototype to a fully production-ready system:
-
-| Version | What Changed |
-|---|---|
-| v1 — Prototype | Single FastAPI + RabbitMQ + Redis + PostgreSQL setup |
-| v2 — Kafka Migration | Replaced RabbitMQ with Apache Kafka for higher throughput |
-| v3 — Cluster Upgrade | Upgraded from a single Kafka broker to a **3-node KRaft Kafka cluster** (no Zookeeper) |
-| v4 — Load Balancing | Added **Nginx reverse proxy** to load balance across **3 replicated backend** instances |
-| v5 — Cross-Platform | Fixed Confluent Kafka `exec format error` on ARM/Kali by migrating to `apache/kafka:3.7.0` (multi-arch) |
-| v6 — Windows Port | Full migration from Linux/Kali to **Windows + Docker Desktop** environment |
-| v7 — UI Refinement | Centred IMS branding, expanded abbreviation, removed guard icon, polished dashboard |
-
 ---
 
 ## 🚀 Tech Stack
-
 ### Backend
 | Tool | Role |
 |---|---|
@@ -136,49 +118,6 @@ Dynamically selects the **alert escalation strategy** based on incident severity
 
 ---
 
-## 📁 Project Structure
-
-```
-Zeotap/
-├── docker-compose.yml          # Full stack orchestration
-├── README.md
-│
-├── backend/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── app/
-│       ├── main.py             # FastAPI app, lifespan, throughput metrics
-│       ├── config.py           # Pydantic settings (env-driven config)
-│       ├── ingestion.py        # POST /ingest → rate limit → Kafka publish
-│       ├── routes.py           # GET/POST incidents, state transitions, RCA
-│       ├── worker.py           # Kafka consumer → debounce → DB writes
-│       ├── models/
-│       │   ├── db.py           # Async SQLAlchemy engine + MongoDB client
-│       │   └── schema.py       # WorkItem + RCA SQLAlchemy ORM models
-│       └── patterns/
-│           ├── state.py        # State Pattern: lifecycle enforcement
-│           └── strategy.py     # Strategy Pattern: severity-based alerting
-│   └── scripts/
-│       └── mock_signals.py     # Load test: fires 10,000 signals at the API
-│
-├── frontend/
-│   ├── Dockerfile
-│   ├── vite.config.js
-│   └── src/
-│       ├── App.jsx             # Root: routing between Dashboard and Detail view
-│       ├── index.css           # Glassmorphism dark theme, custom utilities
-│       └── components/
-│           ├── Dashboard.jsx   # Live incident list with metric cards, auto-refresh
-│           ├── IncidentDetail.jsx  # Single incident view with raw signals + state controls
-│           └── RCAForm.jsx     # Mandatory RCA submission form (blocks CLOSE)
-│
-└── nginx/
-    ├── backend.conf            # Upstream: fastapibackend → 3 backend replicas
-    └── frontend.conf           # Frontend proxy config
-```
-
----
-
 ## 💻 How to Run (Windows / macOS / Linux)
 
 This application is fully Dockerized. The **only prerequisite** is [Docker Desktop](https://www.docker.com/products/docker-desktop/).
@@ -187,7 +126,6 @@ This application is fully Dockerized. The **only prerequisite** is [Docker Deskt
 
 ```bash
 git clone <your-repo-url>
-cd Zeotap
 ```
 
 ### 2. Start the entire stack
@@ -225,55 +163,7 @@ docker compose exec backend python scripts/mock_signals.py
 ```
 
 Watch the dashboard dynamically group thousands of incoming raw signals into just a handful of deduplicated, actionable **Work Items**!
-
 ---
-
-## 🔌 API Endpoints
-
-All API endpoints are served under `/api/v1/`.
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/ingest` | Ingest a raw error signal. Returns `202 Accepted`. |
-| `GET` | `/api/v1/incidents` | List all incidents (work items) ordered by newest first. |
-| `GET` | `/api/v1/incidents/{id}` | Get a single incident with its raw signals from MongoDB and RCA. |
-| `POST` | `/api/v1/incidents/{id}/state` | Transition incident state (`OPEN` → `INVESTIGATING` → `RESOLVED` → `CLOSED`). |
-| `POST` | `/api/v1/incidents/{id}/rca` | Submit Root Cause Analysis. Automatically closes the incident. |
-| `GET` | `/health` | Health check endpoint. |
-
-### Signal Payload (POST `/ingest`)
-
-```json
-{
-  "component_id": "CACHE_CLUSTER_01",
-  "severity": "P0",
-  "payload": {
-    "error": "Connection refused",
-    "host": "10.0.1.5"
-  },
-  "timestamp": 1714600000.0
-}
-```
-
----
-
-## 🗄️ Verifying Data Persistence
-
-### Check PostgreSQL (Incidents & RCA)
-```bash
-docker compose exec postgres psql -U ims_user -d ims_db -c "SELECT id, component_id, state, severity FROM work_items ORDER BY id DESC LIMIT 10;"
-```
-
-### Check MongoDB (Raw Signals)
-```bash
-docker compose exec mongodb mongosh -u root -p example_password --authenticationDatabase admin ims_raw --eval "db.signals.find().limit(5).pretty()"
-```
-
-### Check Redis (Debounce Keys)
-```bash
-docker compose exec redis redis-cli KEYS "debounce:*"
-```
-
 ---
 
 ## 🔧 Kafka Cluster Details
