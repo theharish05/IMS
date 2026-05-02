@@ -1,7 +1,7 @@
 #  Incident Management System (IMS)
 
 A **production-grade, high-throughput Incident Management System** built to ingest, debounce, and manage massive volumes of application error signals. The system is architected to sustain bursts of **10,000+ signals/sec** without overwhelming the persistence layer, using an event-driven, fully decoupled microservices design — all orchestrated with a single `docker compose up` command.
----
+
 
 ## 🚀 Tech Stack
 ### Backend
@@ -163,38 +163,4 @@ docker compose exec backend python scripts/mock_signals.py
 ```
 
 Watch the dashboard dynamically group thousands of incoming raw signals into just a handful of deduplicated, actionable **Work Items**!
----
----
-
-## 🔧 Kafka Cluster Details
-
-The system uses a **3-broker Apache Kafka 3.7.0 cluster in KRaft mode** (no Zookeeper dependency):
-
-- `kafka1:9092` — Broker 1
-- `kafka2:9092` — Broker 2
-- `kafka3:9092` — Broker 3
-
-**Replication factor: 3**, **Min ISR: 2** — meaning the cluster can tolerate losing one broker without data loss.
-
-> ℹ️ **Why `apache/kafka:3.7.0` instead of Confluent?** The Confluent Platform image (`confluentinc/cp-kafka`) is only built for `linux/amd64`. Using `apache/kafka` provides a multi-architecture image that works natively on both `ARM64` (Apple Silicon, some Linux machines) and `x86_64` without emulation, eliminating the `exec format error`.
-
----
-
-## 📊 Live Dashboard Features
-
-- **Metric Cards** — Total incidents, critical open count, total closed count
-- **Active Alerts Tab** — Shows all `OPEN`, `INVESTIGATING`, and `RESOLVED` incidents
-- **Closed Tickets Tab** — Historical view of resolved incidents
-- **Auto-refresh** — Polls the API every **3 seconds** for live updates
-- **Incident Detail View** — Full timeline, raw signals from MongoDB, state transition controls, and RCA submission form
-- **Severity Badges** — Color-coded P0 (red), P1 (amber), P2 (blue)
-- **State Badges** — Color-coded lifecycle status with enforced transition rules
-
----
-
-## ⚠️ Known Constraints & Design Decisions
-
-- **Rate Limit**: The API enforces a global rate limit of **15,000 signals/sec** using a Redis counter with a 1-second TTL. Requests beyond this threshold receive `HTTP 429`.
-- **Debounce Window**: Identical `component_id` signals within **10 seconds** are collapsed into a single WorkItem. This is configurable in `worker.py`.
-- **RCA Enforcement**: The State Pattern in `state.py` physically prevents the `CLOSED` transition without a complete RCA. This is a hard constraint — not UI-only.
-- **Worker Scaling**: Currently a single worker instance. For higher throughput, multiple worker replicas with Kafka consumer groups can be added.
+-
