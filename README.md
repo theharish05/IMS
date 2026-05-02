@@ -163,4 +163,3 @@ docker compose exec backend python scripts/mock_signals.py
 ```
 
 Watch the dashboard dynamically group thousands of incoming raw signals into just a handful of deduplicated, actionable **Work Items**!
--
