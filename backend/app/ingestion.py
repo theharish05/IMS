@@ -10,7 +10,6 @@ from .config import settings
 router = APIRouter()
 redis_client = redis.from_url(settings.redis_url)
 
-# Global producer instance
 producer = None
 
 @router.on_event("startup")
@@ -47,13 +46,11 @@ async def ingest_signal(signal: SignalPayload, request: Request):
     if not signal.timestamp:
         signal.timestamp = time.time()
         
-    # Rate Limiting via Redis (e.g. max 10000 req per second per IP/Global)
-    # For a high volume system, we might just use a token bucket or simple counter
-    # Here we implement a simple counter for rate limiting
+    
     current_time = int(time.time())
     rate_limit_key = f"ratelimit:{current_time}"
     
-    # We will just increment and if it exceeds 15000, we drop or reject.
+  
     current_count = await redis_client.incr(rate_limit_key)
     if current_count == 1:
         await redis_client.expire(rate_limit_key, 2)
@@ -64,7 +61,7 @@ async def ingest_signal(signal: SignalPayload, request: Request):
     throughput_metrics["signals_received"] += 1
 
     try:
-        # Publish to Kafka instantly
+      
         message = json.dumps(signal.model_dump()).encode("utf-8")
         await producer.send_and_wait("signals_topic", message)
     except Exception as e:
