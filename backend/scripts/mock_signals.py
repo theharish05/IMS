@@ -18,17 +18,16 @@ async def send_signal(client, component_id, severity, payload, sem):
             if response.status_code != 202:
                 print(f"Error: {response.status_code} - {response.text}")
         except Exception as e:
-            pass # Silently drop connection errors to prevent console spam
+            pass 
 
 async def main():
     components = ["database-cluster-1", "cache-layer-2", "auth-service", "payment-gateway"]
     severities = ["P0", "P1", "P2", "INFO"]
     
-    # Burst 10,000 signals
     print("Sending 10,000 signals burst...")
     start_time = time.time()
     
-    sem = asyncio.Semaphore(100) # Limit concurrency to 100
+    sem = asyncio.Semaphore(100) 
     
     async with httpx.AsyncClient(limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)) as client:
         tasks = []
